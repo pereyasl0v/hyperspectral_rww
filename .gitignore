@@ -1,0 +1,9 @@
+__pycache__/
+.pytest_cache/
+.venv/
+*.pyc
+.idea/
+.vscode/
+data/output/*
+!data/output/.gitkeep
+data/input/*
