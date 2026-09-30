@@ -7,8 +7,8 @@ import numpy as np
 
 def frames_to_cube(
     raw_frames: list[np.ndarray],
-    x_size: int = 696,
-    k_size: int = 64,
+    x_size: int = 1392,
+    k_size: int = 128,
 ) -> np.ndarray:
     """Преобразовать raw_frames в куб формы [Y, X, K].
 

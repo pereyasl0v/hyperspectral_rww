@@ -34,16 +34,16 @@ from visualization.rgb_image_saver import save_rgb_image
 INPUT_FILE = Path("data/input/file.rww")
 OUTPUT_DIR = Path("data/output")
 
-X = 696
-K = 64
+X = 1392
+K = 128
 HEADER_SIZE = 1024
 
 # Робастная нормализация используется только для визуализации.
 LOWER_PERCENTILE = 1.0
-UPPER_PERCENTILE = 99.0
+UPPER_PERCENTILE = 98.0
 
 # Параметр визуального выделения наиболее отклонённых пикселей.
-ANOMALY_PERCENTILE = 99.0
+ANOMALY_PERCENTILE = 98.0
 
 # Размер блока вычислений Mahalanobis.
 BLOCK_SIZE = 100_000

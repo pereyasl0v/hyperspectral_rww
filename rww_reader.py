@@ -12,8 +12,8 @@ class RWWConfig:
     """Геометрия и формат RAW-части RWW."""
 
     header_size: int = 1024
-    x_size: int = 696          # первая пространственная координата X
-    k_size: int = 64           # спектральная координата K
+    x_size: int = 1392          # первая пространственная координата X
+    k_size: int = 128           # спектральная координата K
     dtype: np.dtype = np.dtype(np.uint8)
 
     @property

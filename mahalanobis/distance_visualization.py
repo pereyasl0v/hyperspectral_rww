@@ -1,5 +1,6 @@
 """Визуализация карты расстояний Махаланобиса."""
 
+
 from __future__ import annotations
 
 import numpy as np

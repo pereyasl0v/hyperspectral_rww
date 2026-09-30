@@ -7,8 +7,8 @@ import numpy as np
 
 def split_frames(
     payload: np.ndarray,
-    x_size: int = 696,
-    k_size: int = 64,
+    x_size: int = 1392,
+    k_size: int = 128,
 ) -> list[np.ndarray]:
     """Разбить RAW-поток на последовательность 1D-кадров [K*X].
 
