@@ -47,13 +47,19 @@ def inspect_rww(path: str | Path, header_bytes: int = 1024, width: int = 696, ba
     )
 
 
-def open_cube(meta: RWWMeta) -> np.memmap:
-    """Open payload as [scan_line, spatial_sample, spectral_band] uint8 cube."""
-    return np.memmap(
+def open_cube(meta: RWWMeta) -> np.ndarray:
+    """Open RWW payload as [Y, X, K] without copying.
+
+    One raw frame is stored on disk as [K, X]: 64 complete spectral rows,
+    each containing 696 spatial samples. The on-disk view is therefore
+    [Y, K, X] and is transposed to the analysis cube [Y, X, K].
+    """
+    raw = np.memmap(
         meta.path,
         dtype=np.uint8,
         mode="r",
         offset=meta.header_bytes,
-        shape=meta.shape,
+        shape=(meta.frames, meta.bands, meta.width),
         order="C",
     )
+    return raw.transpose(0, 2, 1)
