@@ -1,0 +1,24 @@
+[tool.poetry]
+name = "hyperspectral-downlink-planner"
+version = "0.1.0"
+description = "Visual onboard hyperspectral anomaly prioritization and downlink optimization prototype"
+authors = ["Research prototype"]
+package-mode = false
+
+[tool.poetry.dependencies]
+python = ">=3.11,<3.14"
+fastapi = "^0.128.0"
+uvicorn = {version = "^0.48.0", extras = ["standard"]}
+numpy = "^2.0"
+scipy = "^1.14"
+scikit-learn = "^1.5"
+pillow = "^11.0"
+python-multipart = "^0.0.20"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.0"
+httpx = "^0.28"
+
+[build-system]
+requires = ["poetry-core>=1.8.0"]
+build-backend = "poetry.core.masonry.api"
