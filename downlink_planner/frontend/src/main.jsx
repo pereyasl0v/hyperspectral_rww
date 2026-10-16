@@ -20,7 +20,7 @@ function App() {
   const [analysis, setAnalysis] = useState(null)
   const [hovered, setHovered] = useState(null)
   const [view, setView] = useState('rgb')
-  const [r, setR] = useState(48), [g, setG] = useState(32), [b, setB] = useState(16), [band, setBand] = useState(32)
+  const [r, setR] = useState(20), [g, setG] = useState(7), [b, setB] = useState(0), [band, setBand] = useState(32)
   const [channelMbps, setChannelMbps] = useState(10)
   const [sessionSeconds, setSessionSeconds] = useState(5)
   const [params, setParams] = useState({stride:4, seed:99.5, growth:85, angle:12, minPixels:10})
@@ -61,7 +61,7 @@ function App() {
           channel_mbps:+channelMbps, session_seconds:+sessionSeconds,
           analysis_stride:+params.stride, seed_percentile:+params.seed,
           growth_percentile:+params.growth, spectral_angle_deg:+params.angle,
-          min_region_pixels:+params.minPixels, pca_components:8, local_tile:32,
+          min_region_pixels:+params.minPixels, local_tile:32,
           max_regions:200, regularization:0.05
         })
       })
@@ -106,7 +106,7 @@ function App() {
               {overlay && <img src={overlay} className="overlay hover"/>}
             </div> : <div className="empty"><Layers size={42}/><span>Load an RWW file to build the 64-band cube</span></div>}
           </div>
-          <div className="legend"><span><i className="swatch regionSwatch"></i>detected regions</span><span><i className="swatch hoverSwatch"></i>hovered region</span><span>ADC channels are not calibrated wavelengths.</span></div>
+          <div className="legend"><span><i className="swatch regionSwatch"></i>detected regions</span><span><i className="swatch hoverSwatch"></i>hovered region</span><span>Preview only: robust 1–98% normalization. Analysis uses raw ADC counts.</span></div>
         </div>
       </section>
 
@@ -121,8 +121,8 @@ function App() {
         </div>
 
         <div className="panel queue">
-          <div className="queueHead"><div><div className="panelTitle"><Activity size={17}/> Transmission queue</div>{analysis && <small>{analysis.selected_count}/{analysis.region_count} regions · {analysis.used_mbit.toFixed(2)}/{analysis.capacity_mbit.toFixed(2)} Mbit</small>}</div>{analysis && <span className="pill">PCA {(analysis.pca_explained_variance*100).toFixed(1)}%</span>}</div>
-          {!analysis ? <div className="emptyQueue">Run the analysis. The knapsack optimizer will select the maximum-utility subset that fits the downlink budget.</div> :
+          <div className="queueHead"><div><div className="panelTitle"><Activity size={17}/> Transmission queue</div>{analysis && <small>{analysis.selected_count}/{analysis.region_count} regions · {analysis.used_mbit.toFixed(2)}/{analysis.capacity_mbit.toFixed(2)} Mbit</small>}</div>{analysis && <span className="pill">64 raw bands</span>}</div>
+          {!analysis ? <div className="emptyQueue">Run the analysis. The knapsack optimizer selects regions from their Mahalanobis deviation and transmission size.</div> :
             <div className="regionList">{analysis.regions.map(x => <RegionCard key={x.id} r={x} onEnter={()=>setHovered(x.id)} onLeave={()=>setHovered(null)}/>)}</div>}
         </div>
       </aside>
@@ -137,7 +137,7 @@ function Param({label,value,set,min,max,step}) { return <label className="param"
 function RegionCard({r,onEnter,onLeave}) {
   return <div className={`regionCard ${r.selected?'selected':'rejected'}`} onMouseEnter={onEnter} onMouseLeave={onLeave}>
     <div className="order">{r.selected ? r.transmission_order : '—'}</div>
-    <div className="regionBody"><div className="regionTop"><b>Region {r.id}</b><span>{fmtBytes(r.bytes)}</span></div><div className="metrics"><span>max LRX <b>{r.max_lrx.toFixed(1)}</b></span><span>mean <b>{r.mean_lrx.toFixed(1)}</b></span><span>coh. <b>{(r.spectral_coherence*100).toFixed(0)}%</b></span></div><div className="bar"><i style={{width:`${Math.min(100,r.utility*100)}%`}}></i></div><div className="foot"><span>utility {r.utility.toFixed(3)}</span><span>{r.selected ? `${r.transmission_start_s.toFixed(2)}–${r.transmission_end_s.toFixed(2)} s` : 'not selected'}</span></div></div>
+    <div className="regionBody"><div className="regionTop"><b>Region {r.id}</b><span>{fmtBytes(r.bytes)}</span></div><div className="metrics"><span>max LRX <b>{r.max_lrx.toFixed(1)}</b></span><span>mean <b>{r.mean_lrx.toFixed(1)}</b></span><span>coh. <b>{(r.spectral_coherence*100).toFixed(0)}%</b></span></div><div className="foot"><span>region deviation {r.mean_lrx.toFixed(2)}</span><span>{r.selected ? `${r.transmission_start_s.toFixed(2)}–${r.transmission_end_s.toFixed(2)} s` : 'not selected'}</span></div></div>
   </div>
 }
 
