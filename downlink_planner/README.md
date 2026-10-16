@@ -1,38 +1,39 @@
 # Hyperspectral Downlink Planner
 
-FastAPI + React research prototype for the chain:
+FastAPI + React research prototype for:
 
-**RWW → local RX anomaly score → priority spectral-spatial region growing → region utility → knapsack downlink selection → transmission queue**.
+**RWW → LRXD on raw spectral vectors → Mahalanobis-priority spectral-spatial grouping → region size/deviation → 0/1 knapsack → transmission queue**.
 
-## RWW format used by the prototype
+## RWW format
 
 - first 1024 bytes: service/header data, ignored;
 - payload: repeated uint8 frames;
-- one frame: 696 spatial samples × 64 spectral channels;
-- cube layout: `[scan_line, 696, 64]`.
+- one raw frame is stored as `[K, X] = [64, 696]`;
+- the analysis cube is formed as `[Y, X, K]` by transposing every frame;
+- the supplied file contains 4971 frames, so the cube is `4971 × 696 × 64`.
 
-The supplied development file was validated as exactly `4971 × 696 × 64` after removing the 1024-byte header.
+This byte order is important: reshaping the stream directly as `[Y, 696, 64]` mixes spatial samples and spectral channels and produces vertical striping.
+
+## Preview
+
+Preview normalization is intentionally separated from analysis.
+
+For display only, each selected channel is robustly stretched by the 1st and 98th percentiles and clipped to `[0, 255]`. The default pseudo-RGB channels are `R=20`, `G=7`, `B=0`, corresponding approximately to the RGB choice used by the existing project for an assumed 490–1000 nm range.
+
+**LRXD, SAM grouping and the optimizer always use raw uint8 ADC counts, not preview-normalized values.**
 
 ## Algorithm
 
-1. Memory-map the RWW payload.
-2. Downsample spatially by an adjustable analysis stride.
-3. Reduce spectral covariance dimensionality with PCA.
-4. Compute a scalable block-local RXD approximation: each tile is scored against statistics from its local 3×3-tile neighborhood.
-5. Rank high-RX pixels and use them as seeds.
-6. Grow spatially connected regions in priority order. Candidate pixels must satisfy both the RX growth threshold and a Spectral Angle Mapper (SAM) threshold relative to the current running region spectrum.
-7. Compute region utility from robustly normalized max LRXD, mean LRXD, and spectral coherence.
-8. Estimate transmission cost as full 64-channel uint8 region samples plus mask/metadata overhead.
-9. Solve a 0/1 knapsack problem using the manually specified downlink budget `Mbit/s × session seconds`.
-10. The selected subset is ordered for transmission by utility per transmitted Mbit. Hovering a queue item highlights its region on the scene.
+1. Read the raw 64-channel ADC cube without PCA or spectral projection.
+2. Compute local RXD/Mahalanobis scores directly in the original 64-dimensional spectral space.
+3. Rank high-score pixels; the highest unprocessed score initializes the next region.
+4. Grow a spatially connected region while enforcing spectral similarity with Spectral Angle Mapper (SAM). Neighbours are processed in decreasing Mahalanobis priority.
+5. For every region keep its maximum and mean LRXD score and estimate the number of bytes required to transmit its 64-channel samples plus mask/metadata overhead.
+6. Use the region mean Mahalanobis deviation as the knapsack value and the transmission byte count as the knapsack weight.
+7. Solve the 0/1 knapsack under the manually specified budget `Mbit/s × session seconds`.
+8. Order the selected regions for transmission by decreasing Mahalanobis deviation. Hovering a queue item highlights its region on the image.
 
-The knapsack determines **which** regions are transmitted; queue ordering is a separate explicit policy.
-
-## Important scientific limitation
-
-Only raw ADC counts were supplied. No wavelength calibration, radiometric calibration, bad-pixel map, dark-frame correction, or geometric metadata is assumed. Therefore the RGB view is a **pseudo-RGB** assembled from arbitrary ADC channels and should not be interpreted as natural color.
-
-The current LRXD implementation is a computationally practical block-local approximation for interactive prototyping, not yet a validated flight implementation.
+`analysis_stride` is only a spatial speed control for the interactive prototype; it does not reduce the number of spectral channels.
 
 ## Run
 
@@ -44,12 +45,6 @@ poetry install
 cd frontend
 npm install
 cd ..
-```
-
-Either place the local raw file at `downlink_planner/data/file.rww` or point directly to it:
-
-```bash
-export RWW_PATH=/absolute/path/to/file.rww
 ```
 
 Backend:
@@ -65,30 +60,12 @@ cd frontend
 npm run dev
 ```
 
-Open `http://localhost:5173`.
+Open `http://127.0.0.1:5173` or `http://localhost:5173`.
 
-The UI can also upload an `.rww` file directly.
+The UI can upload an `.rww` file directly. Alternatively put it at `downlink_planner/data/file.rww` or set `RWW_PATH`.
 
-## Default demonstration parameters
+## Current limitations
 
-- downlink: 10 Mbit/s for 5 s = 50 Mbit;
-- analysis stride: 4;
-- PCA dimensions: 8;
-- local RX tile: 32 analysis pixels;
-- seed percentile: 99.5;
-- growth percentile: 85;
-- SAM threshold: 12°;
-- minimum region: 10 analysis pixels;
-- maximum regions: 200.
+Only raw ADC values and the frame geometry are known. No wavelength table, radiometric calibration, dark frame, bad-pixel map or geometric metadata is assumed. The RGB image is therefore a visualization, not calibrated reflectance.
 
-For the supplied RWW test file, these defaults produced 157 candidate regions; the 50 Mbit knapsack budget selected 130 regions using about 47.83 Mbit.
-
-## API
-
-- `GET /api/dataset` — parsed RWW metadata
-- `POST /api/dataset/upload` — load RWW
-- `GET /api/preview.png` — pseudo-RGB or individual ADC channel
-- `POST /api/analyze` — LRXD, grouping and downlink optimization
-- `GET /api/analysis/{id}/lrx.png` — anomaly map
-- `GET /api/analysis/{id}/regions.png` — region overlay
-- `GET /api/analysis/{id}/region/{region_id}.png` — hovered-region overlay
+The current local RX implementation uses local tile neighbourhoods for computational practicality. It performs the Mahalanobis calculation directly in all 64 channels; no PCA is used.
