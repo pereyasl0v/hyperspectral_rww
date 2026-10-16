@@ -16,6 +16,7 @@ from PIL import Image
 from .algorithms import AnalysisConfig, AnalysisResult, analyze
 from .rww import RWWMeta, inspect_rww, open_cube
 
+
 BASE_DIR = Path(__file__).resolve().parents[2]
 DATA_DIR = BASE_DIR / "data"
 DATA_DIR.mkdir(parents=True, exist_ok=True)
@@ -37,7 +38,6 @@ class AnalyzeRequest(BaseModel):
     channel_mbps: float = Field(10.0, gt=0, le=10000)
     session_seconds: float = Field(5.0, gt=0, le=86400)
     analysis_stride: int = Field(4, ge=1, le=16)
-    pca_components: int = Field(8, ge=2, le=32)
     local_tile: int = Field(32, ge=8, le=128)
     seed_percentile: float = Field(99.5, gt=90, lt=100)
     growth_percentile: float = Field(85.0, gt=80, lt=100)
@@ -65,7 +65,8 @@ def _require_dataset() -> RWWMeta:
     return DATASET
 
 
-def _stretch_u8(a: np.ndarray, lo: float = 1.0, hi: float = 99.0) -> np.ndarray:
+def _stretch_u8(a: np.ndarray, lo: float = 1.0, hi: float = 98.0) -> np.ndarray:
+    """Robust percentile normalization used only for display."""
     a = np.asarray(a, dtype=np.float32)
     p0, p1 = np.percentile(a, [lo, hi])
     if p1 <= p0:
@@ -121,9 +122,9 @@ def upload_dataset(file: UploadFile = File(...)) -> dict:
 
 @app.get("/api/preview.png")
 def preview_png(
-    r: int = Query(48, ge=0, le=63),
-    g: int = Query(32, ge=0, le=63),
-    b: int = Query(16, ge=0, le=63),
+    r: int = Query(20, ge=0, le=63),
+    g: int = Query(7, ge=0, le=63),
+    b: int = Query(0, ge=0, le=63),
     band: int | None = Query(None, ge=0, le=63),
 ) -> Response:
     m = _require_dataset()
@@ -137,7 +138,8 @@ def preview_png(
 @app.post("/api/analyze")
 def run_analysis(req: AnalyzeRequest) -> dict:
     m = _require_dataset()
-    result = analyze(m, AnalysisConfig(**req.model_dump()))
+    cfg = AnalysisConfig(**req.model_dump())
+    result = analyze(m, cfg)
     analysis_id = uuid.uuid4().hex[:12]
     ANALYSES.clear()
     ANALYSES[analysis_id] = result
@@ -147,7 +149,6 @@ def run_analysis(req: AnalyzeRequest) -> dict:
         "used_bytes": result.used_bytes,
         "capacity_mbit": result.capacity_bytes * 8 / 1_000_000,
         "used_mbit": result.used_bytes * 8 / 1_000_000,
-        "pca_explained_variance": result.pca_explained_variance,
         "stride": result.stride,
         "region_count": len(result.regions),
         "selected_count": sum(r.selected for r in result.regions),
@@ -186,6 +187,7 @@ def regions_png(analysis_id: str) -> Response:
 @app.get("/api/analysis/{analysis_id}/region/{region_id}.png")
 def region_overlay_png(analysis_id: str, region_id: int) -> Response:
     from scipy.ndimage import binary_dilation
+
     result = _analysis_or_404(analysis_id)
     mask = result.labels == region_id
     if not mask.any():
